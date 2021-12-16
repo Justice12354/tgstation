@@ -313,6 +313,17 @@
 		. = t[1]
 		return uppertext(.) + copytext(t, 1 + length(.))
 
+//Picks the initials of each word on a text
+/proc/initials(input)
+    var/split = splittext(input," ")
+    var/output = ""
+    var/index = 1
+    var/total = length(split)
+    while ( index <= total )
+        output += copytext(split[index],1,2)
+        index++
+    return output
+
 /proc/stringmerge(text,compare,replace = "*")
 //This proc fills in all spaces with the "replace" var (* by default) with whatever
 //is in the other string at the same spot (assuming it is not a replace char).

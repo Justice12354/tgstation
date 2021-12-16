@@ -6,6 +6,7 @@
 // TODO: well, a lot really, but specifically I want to add potential fusing of clothing/equipment on the affected area, and limb infections, though those may go in body part code
 /datum/wound/burn
 	name = "Burn Wound"
+	compact_name = ""
 	a_or_from = "from"
 	wound_type = WOUND_BURN
 	processes = TRUE
@@ -255,6 +256,7 @@
 // we don't even care about first degree burns, straight to second
 /datum/wound/burn/moderate
 	name = "Second Degree Burns"
+	compact_name = "2nd Burns"
 	desc = "Patient is suffering considerable burns with mild skin penetration, weakening limb integrity and increased burning sensations."
 	treat_text = "Recommended application of topical ointment or regenerative mesh to affected region."
 	examine_desc = "is badly burned and breaking out in blisters"
@@ -269,6 +271,7 @@
 
 /datum/wound/burn/severe
 	name = "Third Degree Burns"
+	compact_name = "3rd Burns"
 	desc = "Patient is suffering extreme burns with full skin penetration, creating serious risk of infection and greatly reduced limb integrity."
 	treat_text = "Recommended immediate disinfection and excision of any infected skin, followed by bandaging and ointment."
 	examine_desc = "appears seriously charred, with aggressive red splotches"
@@ -285,6 +288,7 @@
 
 /datum/wound/burn/critical
 	name = "Catastrophic Burns"
+	compact_name = "T4 Burns"
 	desc = "Patient is suffering near complete loss of tissue and significantly charred muscle and bone, creating life-threatening risk of infection and negligible limb integrity."
 	treat_text = "Immediate surgical debriding of any infected skin, followed by potent tissue regeneration formula and bandaging."
 	examine_desc = "is a ruined mess of blanched bone, melted fat, and charred tissue"

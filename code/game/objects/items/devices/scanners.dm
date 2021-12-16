@@ -13,7 +13,8 @@ GENE SCANNER
 // Describes the three modes of scanning available for health analyzers
 #define SCANMODE_HEALTH 0
 #define SCANMODE_WOUND 1
-#define SCANMODE_COUNT 2 // Update this to be the number of scan modes if you add more
+#define SCANMODE_COMPACT 2
+#define SCANMODE_COUNT 3 // Update this to be the number of scan modes if you add more
 #define SCANNER_CONDENSED 0
 #define SCANNER_VERBOSE 1
 
@@ -109,6 +110,8 @@ GENE SCANNER
 			to_chat(user, span_notice("You switch the health analyzer to check physical health."))
 		if(SCANMODE_WOUND)
 			to_chat(user, span_notice("You switch the health analyzer to report extra info on wounds."))
+		if(SCANMODE_COMPACT)
+			to_chat(user, span_notice("You switch the health analyzer to compact all info."))
 
 /obj/item/healthanalyzer/attack(mob/living/M, mob/living/carbon/human/user)
 	flick("[icon_state]-scan", src) //makes it so that it plays the scan animation upon scanning, including clumsy scanning
@@ -135,6 +138,8 @@ GENE SCANNER
 			healthscan(user, M, mode, advanced)
 		if (SCANMODE_WOUND)
 			woundscan(user, M, src)
+		if (SCANMODE_COMPACT)
+			compacthealthscan(user, M, mode, advanced)
 
 	add_fingerprint(user)
 
@@ -460,6 +465,225 @@ GENE SCANNER
 			render_list += "<span class='notice ml-1'>Subject is temporally unstable. Stabilising agent is recommended to reduce disturbances.</span>\n"
 
 		to_chat(user, jointext(render_list, ""), trailing_newline = FALSE) // we handled the last <br> so we don't need handholding
+
+/proc/compacthealthscan(mob/user, mob/living/M, mode = SCANNER_VERBOSE, advanced = FALSE)
+	if(user.incapacitated())
+		return
+
+	if(user.is_blind())
+		to_chat(user, span_warning("You realize that your scanner has no accessibility support for the blind!"))
+		return
+
+	// the final list of strings to render
+	var/render_list = list()
+
+	// Damage specifics
+	var/oxy_loss = M.getOxyLoss()
+	var/tox_loss = M.getToxLoss()
+	var/fire_loss = M.getFireLoss()
+	var/brute_loss = M.getBruteLoss()
+	var/mob_status = (M.stat == DEAD ? span_alert("<b>Deceased</b>") : "<b>[round(M.health/M.maxHealth,0.01)*100]% healthy</b>")
+
+	if(HAS_TRAIT(M, TRAIT_FAKEDEATH) && !advanced)
+		mob_status = span_alert("<b>Deceased</b>")
+		oxy_loss = max(rand(1, 40), oxy_loss, (300 - (tox_loss + fire_loss + brute_loss))) // Random oxygen loss
+
+	render_list += "[span_info("Analyzing results for [M]:")]\n<span class='info ml-1'>Overall status: [mob_status]</span>\n"
+
+	SEND_SIGNAL(M, COMSIG_LIVING_HEALTHSCAN, render_list, advanced, user, mode)
+
+	// Husk detection
+	if(advanced && HAS_TRAIT_FROM(M, TRAIT_HUSK, BURN))
+		render_list += "<span class='alert ml-1'>Subject has been husked by severe burns.</span>\n"
+	else if (advanced && HAS_TRAIT_FROM(M, TRAIT_HUSK, CHANGELING_DRAIN))
+		render_list += "<span class='alert ml-1'>Subject has been husked by dessication.</span>\n"
+	else if(HAS_TRAIT(M, TRAIT_HUSK))
+		render_list += "<span class='alert ml-1'>Subject has been husked.</span>\n"
+
+	//Stam, Clone, Hallucinating, Rads Stats
+	if((M.getStaminaLoss() || M.getCloneLoss() || HAS_TRAIT(M, TRAIT_IRRADIATED)) || (advanced && M.hallucinating()))
+		render_list += "<span class='alert ml-1'>"
+		if(advanced)
+			if(M.getStaminaLoss())
+				render_list += "Stamina: [M.getStaminaLoss()]"
+			if(M.getCloneLoss() && M.getStaminaLoss())
+				render_list += " | "
+			if(M.getCloneLoss())
+				render_list += "Cellular: [M.getCloneLoss()]"
+			if((M.getCloneLoss() || M.getStaminaLoss()) && HAS_TRAIT(M, TRAIT_IRRADIATED))
+				render_list += " | "
+			if(HAS_TRAIT(M, TRAIT_IRRADIATED))
+				render_list += "Irradiated"
+		else
+			if(M.getStaminaLoss())
+				render_list += "Fatigue present"
+			if(M.getCloneLoss() && M.getStaminaLoss())
+				render_list += " | "
+			if(M.getCloneLoss())
+				render_list += "Cellular: [M.getCloneLoss() > 30 ? "Severe" : "Minor"]"
+			if((M.getCloneLoss() || M.getStaminaLoss()) && HAS_TRAIT(M, TRAIT_IRRADIATED))
+				render_list += " | "
+			if(HAS_TRAIT(M, TRAIT_IRRADIATED))
+				render_list += "Irradiated"
+			if((M.getCloneLoss() || M.getStaminaLoss() || HAS_TRAIT(M, TRAIT_IRRADIATED)) && M.hallucinating())
+				render_list += "Hallucinating"
+		render_list += "</span>\n"
+
+	//Missing Organs
+	if(ishuman(M))
+		var/mob/living/carbon/human/M_human = M
+		var/datum/species/M_human_species = M_human.dna.species
+		var/missing_list = list()
+		var/list/organs_missing = list()
+		if ((!M_human.getorganslot(ORGAN_SLOT_HEART) || !M_human.getorganslot(ORGAN_SLOT_LUNGS) || !M_human.getorganslot(ORGAN_SLOT_LIVER) || !M_human.getorganslot(ORGAN_SLOT_STOMACH)) || (!M_human.getorganslot(ORGAN_SLOT_EYES) && advanced) || (!M_human.getorganslot(ORGAN_SLOT_EARS) && advanced))
+			if (!(NOBLOOD in M_human_species.species_traits) && !M_human.getorganslot(ORGAN_SLOT_HEART))
+				organs_missing += "heart"
+			if (!(TRAIT_NOBREATH in M_human_species.species_traits) && !M_human.getorganslot(ORGAN_SLOT_LUNGS))
+				organs_missing += "lungs"
+			if (!(TRAIT_NOMETABOLISM in M_human_species.species_traits) && !M_human.getorganslot(ORGAN_SLOT_LIVER))
+				organs_missing += "liver"
+			if (!(NOSTOMACH in M_human_species.species_traits) && !M_human.getorganslot(ORGAN_SLOT_STOMACH))
+				organs_missing += "stomach"
+			if (!M_human.getorganslot(ORGAN_SLOT_BRAIN))
+				organs_missing += "brain"
+			if (!M_human.getorganslot(ORGAN_SLOT_EYES) && advanced)
+				organs_missing += "eyes"
+			if (!M_human.getorganslot(ORGAN_SLOT_EARS) && advanced)
+				organs_missing += "ears"
+			missing_list += "[english_list(organs_missing)]"
+			render_list += "<span class='alert ml-1'>Missing Organs: "+jointext(missing_list,", ")+".</span>\n"
+
+	//Brain Traumas and Quirks
+	if(iscarbon(M))
+		var/mob/living/carbon/C = M
+		if(LAZYLEN(C.get_traumas()))
+			var/list/trauma_text = list()
+			var/missing_list = list ()
+			for(var/datum/brain_trauma/B in C.get_traumas())
+				var/trauma_desc = ""
+				switch(B.resilience)
+					if(TRAUMA_RESILIENCE_SURGERY)
+						trauma_desc += "Severe "
+					if(TRAUMA_RESILIENCE_LOBOTOMY)
+						trauma_desc += "Deep-rooted "
+					if(TRAUMA_RESILIENCE_WOUND)
+						trauma_desc += "Fracture-derived "
+					if(TRAUMA_RESILIENCE_MAGIC, TRAUMA_RESILIENCE_ABSOLUTE)
+						trauma_desc += "Permanent "
+				trauma_desc += B.name
+				trauma_text += trauma_desc
+			missing_list += "[english_list(trauma_text)]"
+			render_list += "<span class='alert ml-1'>Brain Traumas: "+jointext(missing_list,", ")+".</span>\n"
+		if(C.quirks.len && !advanced)
+			render_list += "<span class='info ml-1'>Major Disabilities: [C.get_quirk_string(FALSE, CAT_QUIRK_MAJOR_DISABILITY)].</span>\n"
+		if(C.quirks.len && advanced)
+			render_list += "<span class='info ml-1'>Major Disabilities:</span> <span class='alert ml-1'>[C.get_quirk_string(FALSE, CAT_QUIRK_MAJOR_DISABILITY)]</span> <span class='info ml-1'>| Minor Disabilities: [C.get_quirk_string(FALSE, CAT_QUIRK_MINOR_DISABILITY)].</span>\n"
+
+	//Damage Report
+	if(iscarbon(M) && mode == SCANNER_VERBOSE)
+		var/mob/living/carbon/C = M
+		var/list/damaged = C.get_damaged_bodyparts(1,1)
+		if(length(damaged)>0 || oxy_loss>0 || tox_loss>0 || fire_loss>0)
+			var/dmgreport = "<span class='alert ml-1'><b><font color='#ff0000'>Damage:</b> [CEILING(brute_loss,1) + CEILING(fire_loss,1) + CEILING(tox_loss,1) + CEILING(oxy_loss,1)]</font> <b>("
+			var/list/fourdamagetypes = list()
+			if(C.getBruteLoss())
+				fourdamagetypes += "<font color='#ff3333'>[CEILING(brute_loss,1)]</font>"
+			if(C.getFireLoss())
+				fourdamagetypes += "<font color='#ff9933'>[CEILING(fire_loss,1)]</font>"
+			if(C.getToxLoss())
+				fourdamagetypes += "<font color='#00cc66'>[CEILING(tox_loss,1)]</font>"
+			if(C.getOxyLoss())
+				fourdamagetypes += "<font color='#33ccff'>[CEILING(oxy_loss,1)]</font>"
+			dmgreport += jointext(fourdamagetypes," ")+")</span>\n"
+			dmgreport += "<span class='alert'>  "
+			for(var/o in damaged)
+				var/obj/item/bodypart/org = o //head, left arm, right arm, etc.
+				dmgreport += "</b>[uppertext(initials(org.name))] <b>(<font color='#cc3333'>[(org.brute_dam > 0) ? "[CEILING(org.brute_dam,1)]" : "0"]</font> <font color='#ff9933'>[(org.burn_dam > 0) ? "[CEILING(org.burn_dam,1)]" : "0"]</font>)</b> "
+			render_list += dmgreport+"</span>\n"
+
+	if(ishuman(M))
+		var/mob/living/carbon/human/H = M
+		// Organ damage
+		if (H.internal_organs && H.internal_organs.len)
+			var/render = FALSE
+			var/list/organ_damage = list()
+			var/toReport = "<span class='alert ml-1'><font color='#ff0000'><b>Organs: </b></font></span>"
+			for(var/obj/item/organ/organ in H.internal_organs)
+				var/status = organ.get_compact_status_text()
+				if (status != "")
+					render = TRUE
+					if(!advanced)
+						organ_damage += "<font color='#cc3333'>[organ.name]:</font> [status]"
+					if(advanced)
+						organ_damage += "<font color='#cc3333'>[organ.name]:</font> <font color='#ff3333'>[CEILING(organ.damage,1)]</font>"
+			toReport += jointext(organ_damage," | ")
+			if (render)
+				render_list += toReport+"</span>\n"
+
+	//Wounds
+	if(iscarbon(M))
+		var/mob/living/carbon/C = M
+		var/list/wounds_list = list()
+		var/list/wounded_parts = C.get_wounded_bodyparts()
+		for(var/i in wounded_parts)
+			var/obj/item/bodypart/wounded_part = i
+			var/compact_name = wounded_part.compact_name
+			wounds_list += "[wounded_part.compact_name] in [wounded_part.name]"
+		if(C.get_wounded_bodyparts())
+			render_list += jointext(wounds_list," | ","<span class='alert ml-1'><b>Wounds: ","</b></span>")
+
+	//Viruses and alikes
+	for(var/thing in M.diseases)
+		var/datum/disease/D = thing
+		if(!(D.visibility_flags & HIDDEN_SCANNER))
+			render_list += "<span class='alert ml-1'><b>Warning: [D.form]:</b> Name: [D.name]. Type: [D.spread_text]. Stage: [D.stage]/[D.max_stages]. Possible Cure: [D.cure_text].</span>"
+
+	if(ishuman(M))
+		var/mob/living/carbon/human/H = M
+		// Species and body temperature
+		var/datum/species/S = H.dna.species
+		var/mutant = H.dna.check_mutation(HULK) \
+			|| S.mutantlungs != initial(S.mutantlungs) \
+			|| S.mutantbrain != initial(S.mutantbrain) \
+			|| S.mutantheart != initial(S.mutantheart) \
+			|| S.mutanteyes != initial(S.mutanteyes) \
+			|| S.mutantears != initial(S.mutantears) \
+			|| S.mutanthands != initial(S.mutanthands) \
+			|| S.mutanttongue != initial(S.mutanttongue) \
+			|| S.mutantliver != initial(S.mutantliver) \
+			|| S.mutantstomach != initial(S.mutantstomach) \
+			|| S.mutantappendix != initial(S.mutantappendix) \
+			|| S.flying_species != initial(S.flying_species)
+
+		render_list += "<span class='info ml-1'>Species: [S.name][mutant ? "-derived mutant" : ""] | </span>"
+		render_list += "<span class='info'>Core: [round(H.coretemperature-T0C,0.1)]&deg;C | </span>"
+	render_list += "<span class='info'>Body: [round(M.bodytemperature-T0C,0.1)]&deg;C</span>\n"
+
+	// Blood Level
+	if(M.has_dna())
+		var/mob/living/carbon/C = M
+		var/blood_id = C.get_blood_id()
+		if(blood_id)
+			var/blood_percent = round((C.blood_volume / BLOOD_VOLUME_NORMAL)*100)
+			var/blood_type = C.dna.blood_type
+			if(blood_id != /datum/reagent/blood) // special blood substance
+				var/datum/reagent/R = GLOB.chemical_reagents_list[blood_id]
+				blood_type = R ? R.name : blood_id
+			if(C.blood_volume <= BLOOD_VOLUME_SAFE && C.blood_volume > BLOOD_VOLUME_OKAY)
+				render_list += "<span class='alert ml-1'>Blood: LOW [blood_percent] %,</span> [span_info("type: [blood_type]")]\n"
+			else if(C.blood_volume <= BLOOD_VOLUME_OKAY)
+				render_list += "<span class='alert ml-1'>Blood: <b>CRITICAL [blood_percent] %</b>,</span> [span_info("type: [blood_type]")]\n"
+			else
+				render_list += "<span class='info ml-1'>Blood: [blood_percent] %, type: [blood_type]</span>\n"
+
+	if(ishuman(M))
+		var/mob/living/carbon/human/H = M
+		if(H.undergoing_cardiac_arrest() && H.stat != DEAD)
+			render_list += "[span_alert("Subject suffering from heart attack: Apply defibrillation or other electric shock immediately!")]\n"
+		if(H.has_reagent(/datum/reagent/inverse/technetium))
+			advanced = TRUE
+
+	to_chat(user, jointext(render_list, ""), trailing_newline = FALSE)
 
 /obj/item/healthanalyzer/verb/toggle_mode()
 	set name = "Switch Verbosity"
@@ -920,6 +1144,7 @@ GENE SCANNER
 
 #undef SCANMODE_HEALTH
 #undef SCANMODE_WOUND
+#undef SCANMODE_COMPACT
 #undef SCANMODE_COUNT
 #undef SCANNER_CONDENSED
 #undef SCANNER_VERBOSE

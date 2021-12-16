@@ -5,6 +5,7 @@
 
 /datum/wound/pierce
 	name = "Piercing Wound"
+	compact_name = ""
 	sound_effect = 'sound/weapons/slice.ogg'
 	processes = TRUE
 	wound_type = WOUND_PIERCE
@@ -135,6 +136,7 @@
 
 /datum/wound/pierce/moderate
 	name = "Minor Breakage"
+	compact_name = "T1 Bleed"
 	desc = "Patient's skin has been broken open, causing severe bruising and minor internal bleeding in affected area."
 	treat_text = "Treat affected site with bandaging or exposure to extreme cold. In dire cases, brief exposure to vacuum may suffice." // space is cold in ss13, so it's like an ice pack!
 	examine_desc = "has a small, circular hole, gently bleeding"
@@ -152,6 +154,7 @@
 
 /datum/wound/pierce/severe
 	name = "Open Puncture"
+	compact_name = "T2 Bleed"
 	desc = "Patient's internal tissue is penetrated, causing sizeable internal bleeding and reduced limb stability."
 	treat_text = "Repair punctures in skin by suture or cautery, extreme cold may also work."
 	examine_desc = "is pierced clear through, with bits of tissue obscuring the open hole"
@@ -169,6 +172,7 @@
 
 /datum/wound/pierce/critical
 	name = "Ruptured Cavity"
+	compact_name = "T3 Bleed"
 	desc = "Patient's internal tissue and circulatory system is shredded, causing significant internal bleeding and damage to internal organs."
 	treat_text = "Surgical repair of puncture wound, followed by supervised resanguination."
 	examine_desc = "is ripped clear through, barely held together by exposed bone"

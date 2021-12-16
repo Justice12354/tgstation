@@ -17,6 +17,8 @@
 /datum/wound
 	/// What it's named
 	var/name = "Wound"
+	/// Its compact name
+	var/compact_name = "Compact Wound Name"
 	/// The description shown on the scanners
 	var/desc = ""
 	/// The basic treatment suggested by health analyzers
