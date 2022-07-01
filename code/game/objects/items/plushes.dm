@@ -3,6 +3,9 @@
 	desc = "This is the special coder plush, do not steal."
 	icon = 'icons/obj/plushes.dmi'
 	icon_state = "debug"
+	lefthand_file = 'icons/obj/plushes_lh.dmi'
+	righthand_file = 'icons/obj/plushes_rh.dmi'
+	worn_icon = 'icons/obj/plushes_head.dmi'
 	worn_icon_state = "plushie"
 	attack_verb_continuous = list("thumps", "whomps", "bumps")
 	attack_verb_simple = list("thump", "whomp", "bump")
@@ -653,12 +656,9 @@
 	name = "moth plushie"
 	desc = "A plushie depicting an adorable mothperson. It's a huggable bug!"
 	icon_state = "moffplush"
-	held_lh = 'icons/obj/plushes_lh.dmi'
-	held_rh = 'icons/obj/plushes_rh.dmi'
-	head_icon = 'icons/obj/plushes_head.dmi'
-	held_state = "moffplush"
-	worn_slot_flags = ITEM_SLOT_HEAD
 	inhand_icon_state = "moffplush"
+	worn_icon_state = "moffplush"
+	slot_flags = ITEM_SLOT_HEAD
 	attack_verb_continuous = list("flutters", "flaps")
 	attack_verb_simple = list("flutter", "flap")
 	squeak_override = list('sound/voice/moth/scream_moth.ogg'=1)
